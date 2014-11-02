@@ -243,6 +243,77 @@ public class PGNParser extends AbstractPGNParser {
 		return null;
 	}
 
+	private BufferedReader input = null;
+	private boolean EOS = true;
+	/**
+	 * open a PGN file to be read game by game
+	 * @param reader
+	 */
+	public void openPGNFile(Reader reader) {
+		if (input == null) {
+			input = new BufferedReader(reader);
+			EOS = false;
+		}
+		else {
+			log("another file is still being read",new Exception("openPGNFile: another file is still being read"));
+		}
+	}
+
+	/**
+	 * close the currently open reader
+	 */
+	public void closePGNFile() {
+		if (input == null)
+			log("reader not open",new Exception("closePGNFile: reader not open"));
+		else {
+			try {
+				input.close();
+				input = null;
+				EOS = true;
+			} catch (IOException e) {
+				log("error in closing the PGN reader",e);
+			}
+		}
+	}
+
+	/**
+	 * fetch games one by one from the file
+	 * @param reader
+	 * @return
+	 */
+	public String getNextGame() {
+		if (input == null) {
+			log("reader not open",new Exception("getNextGame: reader not open"));
+			return null;
+		}
+		if (EOS)
+			return null;
+		StringBuffer game = new StringBuffer();
+		String line = null;
+		String lastLine="]";
+		try {
+			while (true){
+				input.mark(64); // keep marking in case this is the beginning of a new game
+				line = input.readLine();
+				if (line == null) {
+					EOS = true;
+					break; // end of stream
+				}
+				if(line.startsWith("[") && !lastLine.endsWith("]")){
+					//game.append(GAME_SEPARATOR);
+					input.reset(); // go back to beginning of new game
+					break;
+				}
+				game.append(line.trim());
+				game.append(System.getProperty("line.separator"));
+				lastLine=line.trim();// adding trim() to remove white space
+			}
+		} catch (IOException e) {
+			log("error in reading the PGN file",e);
+		}
+		return game.toString();
+	}
+
 	/**
 	 * This method parses a PGN file and formats it to be easely parseable by games.
 	 * @param reader the current Reader.
@@ -259,9 +330,9 @@ public class PGNParser extends AbstractPGNParser {
 				if(line.startsWith("[") && !lastLine.endsWith("]")){
 					contents.append(GAME_SEPARATOR);
 				}
-				contents.append(line);
+				contents.append(line.trim());
 				contents.append(System.getProperty("line.separator"));
-				lastLine=line.trim();// adding trim() to remove with space
+				lastLine=line.trim();// adding trim() to remove white space
 			}
 		} catch (FileNotFoundException ex) {
 			log("error in formatting the PGN file",ex);
